@@ -194,7 +194,8 @@ Licensed under the BSD-2-Clause License.
       eventLineColors: ['#005a04', '#ccffbb', '#3a5f0b', '#005502'],
       rangeSelect: null,
       rangeSelectColor: '#eef',
-      resize: false
+      resize: false,
+      yAxisLabelsInside: false,
     };
 
     Grid.prototype.setData = function(data, redraw) {
@@ -410,6 +411,7 @@ Licensed under the BSD-2-Clause License.
 
     Grid.prototype._calc = function() {
       var angle, bottomOffsets, gridLine, h, i, w, yLabelWidths, _ref, _ref1;
+      console.log(this);
       w = this.el.width();
       h = this.el.height();
       if (this.elementWidth !== w || this.elementHeight !== h || this.dirty) {
@@ -456,6 +458,12 @@ Licensed under the BSD-2-Clause License.
           } else {
             this.left += Math.max.apply(Math, bottomOffsets);
           }
+        }
+        if (this.options.yAxisLabelsInside) {
+            this.left = this.options.padding; // permet de retirer l'espace blanc à gauche que provoque le déplacement des labels de l'axe Y dans le graphique
+        }
+        if (this.options.xAxisLabelsInside) {
+            this.bottom = this.elementHeight - this.options.padding; // permet de retirer l'espace blanc en bas que provoque le déplacement des labels de l'axe X dans le graphique
         }
         this.width = Math.max(1, this.right - this.left);
         this.height = Math.max(1, this.bottom - this.top);
@@ -507,7 +515,7 @@ Licensed under the BSD-2-Clause License.
       this.drawGoals();
       this.drawEvents();
       if (this.draw) {
-        return this.draw();
+        return this.draw(), this.drawYAxis(); // Ajout de drawYAxis après draw pour dessiner les labels de l'axe Y au dessus de la courbe
       }
     };
 
@@ -527,6 +535,7 @@ Licensed under the BSD-2-Clause License.
     };
 
     Grid.prototype.yLabelFormat = function(label, i) {
+        label = label.toFixed(0);
       if (typeof this.options.yLabelFormat === 'function') {
         return this.options.yLabelFormat(label, i);
       } else {
@@ -543,23 +552,11 @@ Licensed under the BSD-2-Clause License.
       if (this.options.grid === false && ((_ref = this.options.axes) !== true && _ref !== 'both' && _ref !== 'y')) {
         return;
       }
-      if (!this.options.horizontal) {
-        basePos = this.getYAxisLabelX();
-      } else {
-        basePos = this.getXAxisLabelY();
-      }
       _ref1 = this.grid;
       _results = [];
       for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
         lineY = _ref1[_i];
         pos = this.transY(lineY);
-        if ((_ref2 = this.options.axes) === true || _ref2 === 'both' || _ref2 === 'y') {
-          if (!this.options.horizontal) {
-            this.drawYAxisLabel(basePos, pos, this.yAxisFormat(lineY));
-          } else {
-            this.drawXAxisLabel(pos, basePos, this.yAxisFormat(lineY));
-          }
-        }
         if (this.options.grid) {
           pos = Math.floor(pos) + 0.5;
           if (!this.options.horizontal) {
@@ -573,6 +570,34 @@ Licensed under the BSD-2-Clause License.
       }
       return _results;
     };
+
+    // Fonction pour dessiner les labels de l'axe Y (séparé de drawGrid pour pouvoir les dessiner au dessus de la courbe)
+    Grid.prototype.drawYAxis = function() {
+        var basePos, lineY, pos, _i, _len, _ref, _ref1, _ref2, _results;
+        if (this.options.grid === false && ((_ref = this.options.axes) !== true && _ref !== 'both' && _ref !== 'y')) {
+            return;
+        }
+        if (!this.options.horizontal) {
+            basePos = this.getYAxisLabelX();
+        } else {
+            basePos = this.getXAxisLabelY();
+        }
+        _ref1 = this.grid;
+        _results = [];
+        for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
+            lineY = _ref1[_i];
+            pos = this.transY(lineY);
+            if ((_ref2 = this.options.axes) === true || _ref2 === 'both' || _ref2 === 'y') {
+                if (_i !== 0 && _i !== _ref1.length - 1) {
+                    if (!this.options.horizontal) {
+                        this.drawYAxisLabel(basePos, pos, this.yAxisFormat(lineY));
+                    } else {
+                        this.drawXAxisLabel(pos, basePos, this.yAxisFormat(lineY));
+                    }
+                }
+            }
+        }
+    }
 
     Grid.prototype.drawGoals = function() {
       var color, goal, i, _i, _len, _ref, _results;
@@ -638,7 +663,24 @@ Licensed under the BSD-2-Clause License.
     };
 
     Grid.prototype.drawYAxisLabel = function(xPos, yPos, text) {
-      return this.raphael.text(xPos, yPos, text).attr('font-size', this.options.gridTextSize).attr('font-family', this.options.gridTextFamily).attr('font-weight', this.options.gridTextWeight).attr('fill', this.options.gridTextColor).attr('text-anchor', 'end');
+        var label;
+        label = this.raphael.text(xPos, yPos, text)
+          .attr('font-size', this.options.gridTextSize)
+          .attr('font-family', this.options.gridTextFamily)
+          .attr('font-weight', this.options.gridTextWeight)
+          .attr('fill', this.options.gridTextColor)
+          .attr('text-anchor', 'end');
+        console.log(label);
+        if (this.options.yAxisLabelsInside) {
+          var bbox = label.getBBox();
+          label.attr({
+            'text-anchor': 'end',
+            'x': xPos + bbox.width + 5,
+            'y': yPos + bbox.height - 25
+          });
+        }
+
+        return label;
     };
 
     Grid.prototype.drawGridLine = function(path) {
@@ -850,7 +892,8 @@ Licensed under the BSD-2-Clause License.
       hideHover: false,
       trendLine: false,
       trendLineWidth: 2,
-      trendLineColors: ['#689bc3', '#a2b3bf', '#64b764']
+      trendLineColors: ['#689bc3', '#a2b3bf', '#64b764'],
+      xAxisLabelsInside: false,
     };
 
     Line.prototype.calc = function() {
@@ -992,10 +1035,10 @@ Licensed under the BSD-2-Clause License.
 
     Line.prototype.draw = function() {
       var _ref;
+      this.drawSeries();
       if ((_ref = this.options.axes) === true || _ref === 'both' || _ref === 'x') {
         this.drawXAxis();
       }
-      this.drawSeries();
       if (this.options.hideHover === false) {
         return this.displayHoverForRow(this.data.length - 1);
       }
@@ -1091,6 +1134,7 @@ Licensed under the BSD-2-Clause License.
         }
         _results.push(this.seriesPoints[index].push(circle));
       }
+
       return _results;
     };
 
@@ -1233,7 +1277,21 @@ Licensed under the BSD-2-Clause License.
     };
 
     Line.prototype.drawXAxisLabel = function(xPos, yPos, text) {
-      return this.raphael.text(xPos, yPos, text).attr('font-size', this.options.gridTextSize).attr('font-family', this.options.gridTextFamily).attr('font-weight', this.options.gridTextWeight).attr('fill', this.options.gridTextColor);
+        var label = this.raphael.text(xPos, yPos, text)
+            .attr('font-size', this.options.gridTextSize)
+            .attr('font-family', this.options.gridTextFamily)
+            .attr('font-weight', this.options.gridTextWeight)
+            .attr('fill', this.options.gridTextColor);
+
+        if (this.options.xAxisLabelsInside) {
+            var bbox = label.getBBox();
+            label.attr({
+                'text-anchor': 'middle',
+                'y': yPos + bbox.height - 35
+            });
+        }
+
+        return label;
     };
 
     Line.prototype.drawLinePath = function(path, lineColor, lineIndex) {
@@ -1269,11 +1327,8 @@ Licensed under the BSD-2-Clause License.
     };
 
     Line.prototype.pointGrowSeries = function(index) {
-      if (this.pointSizeForSeries(index) === 0) {
-        return;
-      }
       return Raphael.animation({
-        r: this.pointSizeForSeries(index) + 3
+        r: this.pointSizeForSeries(index) + 4
       }, 25, 'linear');
     };
 
